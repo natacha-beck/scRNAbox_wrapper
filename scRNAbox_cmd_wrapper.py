@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 # This script is a wrapper for the scRNAbox command line interface.
 # It is used to run the scRNAbox pipeline from the command line.
 
@@ -8,6 +10,7 @@
 
 import argparse
 import subprocess
+import sys
 
 parser = argparse.ArgumentParser(description='scRNAbox command line wrapper')
 
@@ -1112,6 +1115,17 @@ if args.par_statistical_method:
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
 # Generate the command line         #
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
+
+# check if no arguments are provided
+if len(sys.argv) == 1:
+    # Execute launch_scrnabox.sh script with -h
+    command = [ "launch_scrnabox.sh", "-h" ]
+    result = subprocess.run(command)
+    sys.exit(0)
+
+if args.dir == None or args.steps == None:
+    print("Please provide the directory and the steps to execute")
+    sys.exit(1)
 
 # Execute launch_scrnabox.sh script
 command = [ "launch_scrnabox.sh", "-d", args.dir, "--steps", args.steps ]
