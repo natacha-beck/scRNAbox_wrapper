@@ -7,8 +7,13 @@
 # The script will also generate the command line that will be used to run the pipeline.
 
 import argparse
+import subprocess
 
 parser = argparse.ArgumentParser(description='scRNAbox command line wrapper')
+
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
+#                                Pipeline parameters                             #
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
 
 ######################
 # General parameters #
@@ -671,6 +676,10 @@ group8_options.add_argument('--par_run_sample_based_celltype_groups', action='st
 # par_statistical_method= "MAST"
 group8_options.add_argument('--par_statistical_method', type=str, help='Which statistical method to use when computing DGE using individual cells as replicates')
 
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
+# Generate the step*.txt files based on the user input and the default parameters #
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
+
 args = parser.parse_args()
 
 #################################
@@ -843,17 +852,17 @@ if args.par_regress_custom_genes:
 if args.par_regress_genes:
     step3_file.write("par_regress_genes= c(" + args.par_regress_genes + ")\n")
 
-if args.step3_par_normalization_method:
-    step3_file.write("par_normalization_method= " + args.step3_par_normalization_method + "\n")
+if args.par_normalization_method_step3:
+    step3_file.write("par_normalization_method= " + args.par_normalization_method_step3 + "\n")
 
-if args.step3_par_scale_factor:
-    step3_file.write("par_scale_factor=" + str(args.step3_par_scale_factor) + "\n")
+if args.par_scale_factor_step3:
+    step3_file.write("par_scale_factor=" + str(args.par_scale_factor_step3) + "\n")
 
-if args.step3_par_selection_method:
-    step3_file.write("par_selection_method= " + args.step3_par_selection_method + "\n")
+if args.par_selection_method_step3:
+    step3_file.write("par_selection_method= " + args.par_selection_method_step3 + "\n")
 
-if args.step3_par_nfeatures:
-    step3_file.write("par_nfeatures=" + str(args.step3_par_nfeatures) + "\n")
+if args.par_nfeatures_step3:
+    step3_file.write("par_nfeatures=" + str(args.par_nfeatures_step3) + "\n")
 
 if args.par_top:
     step3_file.write("par_top=" + str(args.par_top) + "\n")
@@ -876,7 +885,7 @@ if args.par_seurat_object_step4:
     step4_file.write("par_seurat_object= " + args.par_seurat_object_step4 + "\n")
 
 if args.par_RunUMAP_dims_step4:
-    step4_file.write("par_RunUMAP_dims=" + str(args.step4_par_RunUMAP_dims_step4) + "\n")
+    step4_file.write("par_RunUMAP_dims=" + str(args.par_RunUMAP_dims_step4) + "\n")
 
 if args.par_RunUMAP_n_neighbors_step4:
     step4_file.write("par_RunUMAP_n_neighbors=" + str(args.par_RunUMAP_n_neighbors_step4) + "\n")
@@ -1099,3 +1108,57 @@ if args.par_run_sample_based_celltype_groups:
 
 if args.par_statistical_method:
     step8_file.write("par_statistical_method= " + args.par_statistical_method + "\n")
+
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
+# Generate the command line         #
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
+
+# Execute launch_scrnabox.sh script
+command = [ "launch_scrnabox.sh", "-d", args.dir, "--steps", args.steps ]
+
+# Add method to command if provided
+if args.method:
+    command.append("--method")
+    command.append(args.method)
+
+# Add msd if provided
+if args.msd:
+    command.append("--msd")
+
+# Add markergsea if provided
+if args.markergsea:
+    command.append("--markergsea")
+
+# Add knownmarkers if provided
+if args.knownmarkers:
+    command.append("--knownmarkers")
+
+# Add referenceannotation if provided
+if args.referenceannotation:
+    command.append("--referenceannotation")
+
+# Add annotate if provided
+if args.annotate:
+    command.append("--annotate")
+
+# Add addmeta if provided
+if args.addmeta:
+    command.append("--addmeta")
+
+# Add rundge if provided
+if args.rundge:
+    command.append("--rundge")
+
+# Add seulist if provided
+if args.seulist:
+    command.append("--seulist")
+
+# Add rcheck if provided
+if args.rcheck:
+    command.append("--rcheck")
+
+result = subprocess.run(command)
+
+if result.returncode != 0:
+    print("Error while executing launch_scrnabox.sh script")
+    sys.exit(1)
