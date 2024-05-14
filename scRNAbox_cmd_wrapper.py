@@ -11,12 +11,49 @@
 import argparse
 import subprocess
 import sys
+import os
+import time
+
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
+# Utility methods                  #
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
+
+def is_dir(path):
+    if os.path.isdir(path):
+        return path
+    else:
+        raise argparse.ArgumentTypeError(f"{path} is not a valid path")
+
+def is_file(path):
+    if os.path.isfile(path):
+        return path
+    else:
+        raise argparse.ArgumentTypeError(f"{path} is not a valid file")
+
 
 parser = argparse.ArgumentParser(description='scRNAbox command line wrapper')
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
 #                                Pipeline parameters                             #
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
+
+############################
+# Configuration parameters #
+############################
+
+configuration_options = parser.add_argument_group('Configuration parameters')
+
+# -R  (--R_path)  =  Path to R executable
+configuration_options.add_argument('--R_path', type=is_dir, help='Path to R executable')
+
+# job_mode
+configuration_options.add_argument('--job_mode', type=str, help='Job mode (local, slurm)')
+
+# output_dir
+configuration_options.add_argument('--output_dir', type=str, help='Output directory')
+
+# Reference data directory
+configuration_options.add_argument('--ref_data_dir', type=is_dir, help='Reference data directory')
 
 ######################
 # General parameters #
@@ -72,7 +109,7 @@ group1_options.add_argument('--par_automated_library_prep', action='store_true',
 
 ## Path to the directory containing the FASTQ files for the experiment. This folder should only contain the FASTQ files for the experiment.
 #par_fastq_directory= "/path/to/fastqs/directory"
-group1_options.add_argument('--par_fastq_directory', type=str, help='Directory containing the FASTQ files for the experiment')
+group1_options.add_argument('--par_fastq_directory', type=is_dir, help='Directory containing the FASTQ files for the experiment')
 
 ## List the sample names used in the FASTQ nomenclature
 #par_sample_names= c("Sample1", "Sample2", "Sample3")
@@ -89,6 +126,10 @@ group1_options.add_argument('--par_new_sample_names', type=str, help='List the n
 ## If your sequencing is paired-end, set the following to TRUE. Otherwise set it as FALSE.
 #par_paired_end_seq=TRUE
 group1_options.add_argument('--par_paired_end_seq', action='store_true', help='If your sequencing is paired-end')
+
+# CellRanger count pipeline parameters.
+## Path to parent directory containing the reference genome
+group1_options.add_argument('--par_ref_dir', type=is_dir, help='Reference genome parent directory')
 
 # CellRanger counts pipeline parameters.
 ## Path to reference genome
@@ -221,7 +262,7 @@ group3_options.add_argument('--par_save_metadata_step3', action='store_true', he
 # Uncomment the line to activate the parameter
 ############################################################################
 #par_seurat_object= "/path/to/directory/containing/seurat/object"
-group3_options.add_argument('--par_seurat_object_step3', type=str, help='Directory containing Seurat object(s)')
+group3_options.add_argument('--par_seurat_object_step3', type=is_dir, help='Directory containing Seurat object(s)')
 
 # Quality control parameters
 # Uncomment the line to activate the parameter and add the desired value. Cells will be filtered out accordingly.
@@ -330,7 +371,7 @@ group4_options.add_argument('--par_save_metadata_step4', action='store_true', he
 # Uncomment the line to activate the parameter
 ############################################################################
 #par_seurat_object= "/path/to/directory/containing/seurat/object"
-group4_options.add_argument('--par_seurat_object_step4', type=str, help='Directory containing Seurat object(s)')
+group4_options.add_argument('--par_seurat_object_step4', type=is_dir, help='Directory containing Seurat object(s)')
 
 # Parameters for UMAP dimensional reduction
 ############################################################################
@@ -390,7 +431,7 @@ group5_options.add_argument('--par_save_metadata_step5', action='store_true', he
 # Uncomment the line to activate the parameter
 ############################################################################
 #par_seurat_object= "/path/to/directory/containing/seurat/objects"
-group5_options.add_argument('--par_seurat_object_step5', type=str, help='Directory containing Seurat object(s)')
+group5_options.add_argument('--par_seurat_object_step5', type=is_dir, help='Directory containing Seurat object(s)')
 
 # If you only have one Seurat object and want to skip integration set the following to "yes"
 ############################################################################
@@ -473,7 +514,7 @@ group6_options.add_argument('--par_save_metadata_step6', action='store_true', he
 # Uncomment the line to activate the parameter. Note you can only have one Seurat object at this point.
 ############################################################################
 #par_seurat_object= "/path/to/seurat.rds"
-group6_options.add_argument('--par_seurat_object_step6', type=str, help='Path to Seurat object')
+group6_options.add_argument('--par_seurat_object_step6', type=is_file, help='Path to Seurat object')
 
 # If you skipped integration in step 5, set the following to "yes".
 # If you performed integration, keep the default as no.
@@ -533,7 +574,7 @@ group7_options.add_argument('--par_save_metadata_step7', action='store_true', he
 # Your Seurat object must already have clusters
 ############################################################################
 #par_seurat_object= "/path/to/seurat.rds"
-group7_options.add_argument('--par_seurat_object_step7', type=str, help='Path to Seurat object')
+group7_options.add_argument('--par_seurat_object_step7', type=is_dir, help='Path to Seurat object')
 
 # General parameters for cluster annotation
 ############################################################################
@@ -575,7 +616,7 @@ group7_options.add_argument('--par_run_visualize_markers', action='store_true', 
 
 ## Define the path to a csv file containing the genes sets for module score
 # par_module_score= "/path/to/gene_sets.csv"
-group7_options.add_argument('--par_module_score', type=str, help='csv file containing the genes sets for module score')
+group7_options.add_argument('--par_module_score', type=is_file, help='csv file containing the genes sets for module score')
 
 ## List of markers that you want to visualize (dot plot, violin plot, feature plot)
 ## Be sure to use the official gene names
@@ -584,13 +625,13 @@ group7_options.add_argument('--par_select_features_list', type=str, help='List o
 
 ## If you want to define multiple lists of markers to visualize, you can do so with a csv file. The header should contain the list names and all features belonging to the same list should be in the same column. Uncomment the below parameter and enter the location of the csv file. This can be the same csv file used for module score.
 #par_select_features_csv= "/path/to/visualize_features.csv"
-group7_options.add_argument('--par_select_features_csv', type=str, help='csv file containing the markers that you want to visualize')
+group7_options.add_argument('--par_select_features_csv', type=is_file, help='csv file containing the markers that you want to visualize')
 
 # Tool 3: Reference-based annotation parameters
 ######################################################################
 ## Seurat RDS object to use as the reference
 # par_reference= "/path/to/reference_seurat_object.rds"
-group7_options.add_argument('--par_reference', type=str, help='Seurat RDS object to use as the reference')
+group7_options.add_argument('--par_reference', type=is_file, help='Seurat RDS object to use as the reference')
 
 ## Define an arbitrary name for the reference object. This will be used to name the metadata slot.
 # par_reference_name= "reference"
@@ -640,7 +681,7 @@ group8_options.add_argument('--par_save_metadata_step8', action='store_true', he
 # Uncomment the line to activate the parameter
 ############################################################################
 #par_seurat_object= "/path/to/seurat.rds"
-group8_options.add_argument('--par_seurat_object_step8', type=str, help='Path to Seurat object')
+group8_options.add_argument('--par_seurat_object_step8', type=is_file, help='Path to Seurat object')
 
 # Add metadata parameters
 ############################################################################
@@ -651,7 +692,7 @@ group8_options.add_argument('--par_merge_meta', type=str, help='Column from the 
 ## Enter the path to a csv file describing new metadata that should be added to the Seurat object to facilitate DEG analysis.
 ## The rows should contain the data to add in the order of the levels of "Sample_ID" or the metadata slot you will use to define your samples. The column names should be the desired name of the metadata slot to add.
 # par_metadata= "path/to/metadata.csv"
-group8_options.add_argument('--par_metadata', type=str, help='Path to a csv file describing new metadata that should be added to the Seurat object')
+group8_options.add_argument('--par_metadata', type=is_file, help='Path to a csv file describing new metadata that should be added to the Seurat object')
 
 # Run DGE parameters
 # Choose which differential gene expression (DGE) methods you want to use for this submission
@@ -679,17 +720,98 @@ group8_options.add_argument('--par_run_sample_based_celltype_groups', action='st
 # par_statistical_method= "MAST"
 group8_options.add_argument('--par_statistical_method', type=str, help='Which statistical method to use when computing DGE using individual cells as replicates')
 
+# contrast_cell_based_all_cells
+group8_options.add_argument('--step8_contrast_cell_based_all_cells', type=is_file, help='To perform cell-based DGE using all cells')
+
+# contrast_cell_based_celltype_groups
+group8_options.add_argument('--step8_contrast_cell_based_celltype_groups', type=is_file, help='To perform cell-based DGE using cell type groups')
+
+# contrast_sample_based_all_cells
+group8_options.add_argument('--step8_contrast_sample_based_all_cells', type=is_file, help='To perform sample-based DGE using all cells')
+
+# contrast_sample_based_celltype_groups
+group8_options.add_argument('--step8_contrast_sample_based_celltype_groups', type=is_file, help='To perform sample-based DGE using all cells')
+
+
+#################################
+# Validate the input parameters #
+#################################
+
+args = parser.parse_args()
+
+# check if no arguments are provided
+if len(sys.argv) == 1:
+    parser.print_help()
+    sys.exit(0)
+
+if args.dir == None or args.steps == None or args.output_dir == None:
+    print("Please provide the work directory, the steps to execute, and the output directory.")
+    sys.exit(1)
+
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
 # Generate the step*.txt files based on the user input and the default parameters #
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
 
-args = parser.parse_args()
+# Create working directory
+# Check if the directory already exists
+current_dir = os.getcwd()
+dir_fullpath = current_dir + "/" + args.dir
+if os.path.exists(dir_fullpath):
+    print("Directory already exists, use this directory to continue the analysis.")
+else:
+    os.makedirs(dir_fullpath)
+    # Create job_info directory
+    os.makedirs(dir_fullpath + "/job_info")
+    # Create configs directory
+    os.makedirs(dir_fullpath + "/job_info/configs")
+    # Create parameters directory
+    os.makedirs(dir_fullpath + "/job_info/parameters")
+    # Create .tmp directory
+    os.makedirs(dir_fullpath + "/job_info/.tmp")
+    # Create logs directory
+    os.makedirs(dir_fullpath + "/job_info/logs")
+    # touch summary_report.txt
+    open(dir_fullpath + "/job_info/summary_report.txt", "w").close()
+
+#################################
+# Generate scrnabox_config.ini  #
+#################################
+
+config_file_path = dir_fullpath + "/job_info/configs/scrnabox_config.ini"
+print ("Generating scrnabox_config.ini file: " + config_file_path)
+if os.path.exists(config_file_path):
+    # Copy file with timestamp with standar mv command
+    subprocess.run(["mv", config_file_path, config_file_path + "." + str(int(time.time()))])
+
+config_file = open(config_file_path, "w")
+
+if args.R_path:
+    config_file.write("R_LIB_PATH=" + args.R_path + "\n")
+else:
+    # Check for R_LIB_PATH in the environment variables
+    if "R_LIB_PATH" in os.environ:
+        config_file.write("R_LIB_PATH=" + os.environ["R_LIB_PATH"] + "\n")
+    else:
+        print("Please provide the path to the R library directory using the --R_path argument or set the R_LIB_PATH environment variable.")
+        sys.exit(1)
+
+if args.method:
+    config_file.write("SCRNA_METHOD=" + args.method + "\n")
+
+if args.job_mode:
+    config_file.write("JOB_MODE=" + args.job_mode + "\n")
+else:
+    config_file.write("JOB_MODE=local\n")
+
+# close the file
+config_file.close()
 
 #################################
 # Generate the step1_*.txt file #
 #################################
 
-step1_file = open("step1.txt", "w")
+step1_file_path = dir_fullpath + "/job_info/parameters/step1_par.txt"
+step1_file = open(step1_file_path, "w")
 
 if args.par_automated_library_prep:
     step1_file.write("par_automated_library_prep=\"yes\"\n")
@@ -697,22 +819,34 @@ else:
     step1_file.write("par_automated_library_prep=\"no\"\n")
 
 if args.par_fastq_directory:
-    step1_file.write("par_fastq_directory= " + args.par_fastq_directory + "\n")
+    full_path_fastq = current_dir + "/" + args.par_fastq_directory
+    step1_file.write("par_fastq_directory='" + full_path_fastq + "'\n")
 
 if args.par_sample_names_step1:
-    step1_file.write("par_sample_names= c(" + args.par_sample_names_step1 + ")\n")
+    # split the list of sample names ',' and add simple quotes join the list with
+    split_par_sample_names_step1 = args.par_sample_names_step1.split(',')
+    par_sample_names_step1 = ",".join([f"'{item}'" for item in split_par_sample_names_step1])
+    step1_file.write("par_sample_names= c(" + par_sample_names_step1 + ")\n")
 
 if args.par_rename_samples:
     step1_file.write("par_rename_samples=\"yes\"\n")
+else:
+    step1_file.write("par_rename_samples=\"no\"\n")
 
 if args.par_new_sample_names:
-    step1_file.write("par_new_sample_names= c(" + args.par_new_sample_names + ")\n")
+    split_par_new_sample_names = args.par_new_sample_names.split(',')
+    par_new_sample_names = ",".join([f"'{item}'" for item in split_par_new_sample_names])
+    step1_file.write("par_new_sample_names= c(" + par_new_sample_names + ")\n")
 
 if args.par_paired_end_seq:
     step1_file.write("par_paired_end_seq=TRUE\n")
+else:
+    step1_file.write("par_paired_end_seq=FALSE\n")
 
-if args.par_ref_dir_grch:
-    step1_file.write("par_ref_dir_grch= " + args.par_ref_dir_grch + "\n")
+if args.ref_data_dir and args.par_ref_dir_grch :
+    step1_file.write("par_ref_dir_grch='" + args.ref_data_dir + '/' + args.par_ref_dir_grch + "'\n")
+elif args.par_ref_dir_grch:
+    step1_file.write("par_ref_dir_grch='" + args.par_ref_dir_grch + "'\n")
 
 if args.par_r1_length:
     step1_file.write("par_r1_length=" + str(args.par_r1_length) + "\n")
@@ -721,17 +855,17 @@ if args.par_r2_length:
     step1_file.write("par_r2_length=" + str(args.par_r2_length) + "\n")
 
 if args.par_mempercode:
-    step1_file.write("par_mempercode=" + args.par_mempercode + "\n")
+    step1_file.write("par_mempercode=" + str(args.par_mempercode) + "\n")
+else:
+    step1_file.write("par_mempercode=30\n")
 
 if args.par_include_introns:
-    step1_file.write("par_include_introns=\"yes\"\n")
+    step1_file.write("par_include_introns=TRUE\n")
 else:
-    step1_file.write("par_include_introns=\"no\"\n")
+    step1_file.write("par_include_introns=FALSE\n")
 
 if args.par_no_target_umi_filter:
     step1_file.write("par_no_target_umi_filter=\"no\"\n")
-else:
-    step1_file.write("par_no_target_umi_filter=\"yes\"\n")
 
 if args.par_expect_cells:
     step1_file.write("par_expect_cells=" + str(args.par_expect_cells) + "\n")
@@ -741,8 +875,6 @@ if args.par_force_cells:
 
 if args.par_no_bam:
     step1_file.write("par_no_bam=\"no\"\n")
-else:
-    step1_file.write("par_no_bam=\"yes\"\n")
 
 if args.par_RNA_run_names:
     step1_file.write("par_RNA_run_names= " + args.par_RNA_run_names + "\n")
@@ -768,11 +900,14 @@ if args.pattern:
 if args.sequence:
     step1_file.write("sequence= " + args.sequence + "\n")
 
+step1_file.close()
+
 #################################
 # Generate the step2_*.txt file #
 #################################
 
-step2_file = open("step2.txt", "w")
+step2_file_path = dir_fullpath + "/job_info/parameters/step2_par.txt"
+step2_file = open(step2_file_path, "w")
 
 if args.par_save_RNA_step2:
     step2_file.write("par_save_RNA=\"yes\"\n")
@@ -782,36 +917,42 @@ if args.par_save_metadata_step2:
 
 if args.par_ambient_RNA:
     step2_file.write("par_ambient_RNA=\"yes\"\n")
+else:
+    step2_file.write("par_ambient_RNA=\"no\"\n")
 
 if args.par_min_cells_L:
-    step2_file.write("par_min_cells_L=" + str(args.par_min_cells_L) + "\n")
+    step2_file.write("par_min.cells_L=" + str(args.par_min_cells_L) + "\n")
 
 if args.par_normalization_method_step2:
-    step2_file.write("par_normalization_method= " + args.par_normalization_method_step2 + "\n")
+    step2_file.write("par_normalization.method=\"" + args.par_normalization_method_step2 + "\"\n")
 
 if args.par_scale_factor_step2:
-    step2_file.write("par_scale_factor=" + str(args.par_scale_factor_step2) + "\n")
+    step2_file.write("par_scale.factor=" + str(args.par_scale_factor_step2) + "\n")
 
 if args.par_selection_method_step2:
-    step2_file.write("par_selection_method= " + args.par_selection_method_step2 + "\n")
+    step2_file.write("par_selection.method=\"" + args.par_selection_method_step2 + "\"\n")
 
 if args.par_nfeatures_step2:
     step2_file.write("par_nfeatures=" + str(args.par_nfeatures_step2) + "\n")
+
+step2_file.close()
 
 #################################
 # Generate the step_3.txt file #
 #################################
 
-step3_file = open("step3.txt", "w")
+step3_file_path = dir_fullpath + "/job_info/parameters/step3_par.txt"
+step3_file = open(step3_file_path, "w")
 
 if args.par_save_RNA_step3:
-    step3_file.write("spar_save_RNA=\"yes\"\n")
+    step3_file.write("par_save_RNA=\"yes\"\n")
 
 if args.par_save_metadata_step3:
     step3_file.write("par_save_metadata=\"yes\"\n")
 
 if args.par_seurat_object_step3:
-    step3_file.write("par_seurat_object= " + args.par_seurat_object_step3 + "\n")
+    full_path_seurat_object = current_dir + "/" + args.par_seurat_object_step3
+    step3_file.write("par_seurat_object= " + full_path_seurat_object + "\n")
 
 if args.par_nFeature_RNA_L:
     step3_file.write("par_nFeature_RNA_L=" + str(args.par_nFeature_RNA_L) + "\n")
@@ -856,13 +997,13 @@ if args.par_regress_genes:
     step3_file.write("par_regress_genes= c(" + args.par_regress_genes + ")\n")
 
 if args.par_normalization_method_step3:
-    step3_file.write("par_normalization_method= " + args.par_normalization_method_step3 + "\n")
+    step3_file.write("par_normalization.method=\"" + args.par_normalization_method_step3 + "\"\n")
 
 if args.par_scale_factor_step3:
-    step3_file.write("par_scale_factor=" + str(args.par_scale_factor_step3) + "\n")
+    step3_file.write("par_scale.factor=" + str(args.par_scale_factor_step3) + "\n")
 
 if args.par_selection_method_step3:
-    step3_file.write("par_selection_method= " + args.par_selection_method_step3 + "\n")
+    step3_file.write("par_selection.method=\"" + args.par_selection_method_step3 + "\"\n")
 
 if args.par_nfeatures_step3:
     step3_file.write("par_nfeatures=" + str(args.par_nfeatures_step3) + "\n")
@@ -873,10 +1014,14 @@ if args.par_top:
 if args.par_npcs_pca:
     step3_file.write("par_npcs_pca=" + str(args.par_npcs_pca) + "\n")
 
+step3_file.close()
+
 #################################
 # Generate the step_4.txt file #
 #################################
-step4_file = open("step4.txt", "w")
+
+step4_file_path = dir_fullpath + "/job_info/parameters/step4_par.txt"
+step4_file = open(step4_file_path, "w")
 
 if args.par_save_RNA_step4:
     step4_file.write("par_save_RNA=\"yes\"\n")
@@ -885,13 +1030,14 @@ if args.par_save_metadata_step4:
     step4_file.write("par_save_metadata=\"yes\"\n")
 
 if args.par_seurat_object_step4:
-    step4_file.write("par_seurat_object= " + args.par_seurat_object_step4 + "\n")
+    full_path_seurat_object = current_dir + "/" + args.par_seurat_object_step4
+    step4_file.write("par_seurat_object= " + full_path_seurat_object + "\n")
 
 if args.par_RunUMAP_dims_step4:
     step4_file.write("par_RunUMAP_dims=" + str(args.par_RunUMAP_dims_step4) + "\n")
 
 if args.par_RunUMAP_n_neighbors_step4:
-    step4_file.write("par_RunUMAP_n_neighbors=" + str(args.par_RunUMAP_n_neighbors_step4) + "\n")
+    step4_file.write("par_RunUMAP_n.neighbors=" + str(args.par_RunUMAP_n_neighbors_step4) + "\n")
 
 if args.par_dropDN:
     step4_file.write("par_dropDN=\"yes\"\n")
@@ -914,11 +1060,14 @@ if args.par_sample_names_step4:
 if args.par_expected_doublet_rate:
     step4_file.write("par_expected_doublet_rate= c(" + args.par_expected_doublet_rate + ")\n")
 
+step4_file.close()
+
 #################################
 # Generate the step_5.txt file #
 #################################
 
-step5_file = open("step5.txt", "w")
+step5_file_path = dir_fullpath + "/job_info/parameters/step5_par.txt"
+step5_file = open(step5_file_path, "w")
 
 if args.par_save_RNA_step5:
     step5_file.write("par_save_RNA=\"yes\"\n")
@@ -927,7 +1076,8 @@ if args.par_save_metadata_step5:
     step5_file.write("par_save_metadata=\"yes\"\n")
 
 if args.par_seurat_object_step5:
-    step5_file.write("step5_par_seurat_object= " + args.par_seurat_object_step5 + "\n")
+    full_path_seurat_object = current_dir + "/" + args.par_seurat_object_step5
+    step5_file.write("step5_par_seurat_object= " + full_path_seurat_object + "\n")
 
 if args.par_one_seurat:
     step5_file.write("par_one_seurat=\"yes\"\n")
@@ -942,13 +1092,13 @@ if args.par_DefaultAssay:
     step5_file.write("par_DefaultAssay= " + args.par_DefaultAssay + "\n")
 
 if args.par_normalization_method_step5:
-    step5_file.write("par_normalization_method= " + args.par_normalization_method_step5 + "\n")
+    step5_file.write("par_normalization.method=\"" + args.par_normalization_method_step5 + "\"\n")
 
 if args.par_scale_factor_step5:
-    step5_file.write("par_scale_factor=" + str(args.par_scale_factor_step5) + "\n")
+    step5_file.write("par_scale.factor=" + str(args.par_scale_factor_step5) + "\n")
 
 if args.par_selection_method_step5:
-    step5_file.write("par_selection_method= " + args.par_selection_method_step5 + "\n")
+    step5_file.write("par_selection.method=\"" + args.par_selection_method_step5 + "\"\n")
 
 if args.par_nfeatures_step5:
     step5_file.write("par_nfeatures=" + str(args.par_nfeatures_step5) + "\n")
@@ -963,16 +1113,19 @@ if args.par_RunUMAP_dims_step5:
     step5_file.write("par_RunUMAP_dims=" + str(args.par_RunUMAP_dims_step5) + "\n")
 
 if args.par_RunUMAP_n_neighbors_step5:
-    step5_file.write("par_RunUMAP_n_neighbors=" + str(args.par_RunUMAP_n_neighbors_step5) + "\n")
+    step5_file.write("par_RunUMAP_n.neighbors=" + str(args.par_RunUMAP_n_neighbors_step5) + "\n")
 
 if args.par_compute_jackstraw:
     step5_file.write("par_compute_jackstraw=\"yes\"\n")
+
+step5_file.close()
 
 #################################
 # Generate the step_6.txt file #
 #################################
 
-step6_file = open("step6.txt", "w")
+step6_file_path = dir_fullpath + "/job_info/parameters/step6_par.txt"
+step6_file = open(step6_file_path, "w")
 
 if args.par_save_RNA_step6:
     step6_file.write("step6_par_save_RNA=\"yes\"\n")
@@ -981,6 +1134,7 @@ if args.par_save_metadata_step6:
     step6_file.write("step6_par_save_metadata=\"yes\"\n")
 
 if args.par_seurat_object_step6:
+    full_path_seurat_object = current_dir + "/" + args.par_seurat_object_step6
     step6_file.write("step6_par_seurat_object= " + args.par_seurat_object_step6 + "\n")
 
 if args.par_skip_integration:
@@ -993,10 +1147,10 @@ if args.par_RunUMAP_dims_step6:
     step6_file.write("par_RunUMAP_dims=" + str(args.par_RunUMAP_dims_step6) + "\n")
 
 if args.par_FindNeighbors_k_param:
-    step6_file.write("par_FindNeighbors_k_param=" + str(args.par_FindNeighbors_k_param) + "\n")
+    step6_file.write("par_FindNeighbors_k.param=" + str(args.par_FindNeighbors_k_param) + "\n")
 
 if args.par_FindNeighbors_prune_SNN:
-    step6_file.write("par_FindNeighbors_prune_SNN=" + str(args.par_FindNeighbors_prune_SNN) + "\n")
+    step6_file.write("par_FindNeighbors_prune.SNN=" + str(args.par_FindNeighbors_prune_SNN) + "\n")
 
 if args.par_FindClusters_resolution:
     step6_file.write("par_FindClusters_resolution= c(" + args.par_FindClusters_resolution + ")\n")
@@ -1007,11 +1161,14 @@ if args.par_compute_ARI:
 if args.par_RI_reps:
     step6_file.write("par_RI_reps=" + str(args.par_RI_reps) + "\n")
 
+step6_file.close()
+
 #################################
 # Generate the step_7.txt file #
 #################################
 
-step7_file = open("step7.txt", "w")
+step7_file_path = dir_fullpath + "/job_info/parameters/step7_par.txt"
+step7_file = open(step7_file_path, "w")
 
 if args.par_save_RNA_step7:
     step7_file.write("step7_par_save_RNA=\"yes\"\n")
@@ -1020,6 +1177,7 @@ if args.par_save_metadata_step7:
     step7_file.write("step7_par_save_metadata=\"yes\"\n")
 
 if args.par_seurat_object_step7:
+    full_path_seurat_object = current_dir + "/" + args.par_seurat_object_step7
     step7_file.write("step7_par_seurat_object= " + args.par_seurat_object_step7 + "\n")
 
 if args.par_level_cluster:
@@ -1044,16 +1202,19 @@ if args.par_run_visualize_markers:
     step7_file.write("par_run_visualize_markers=\"yes\"\n")
 
 if args.par_module_score:
-    step7_file.write("par_module_score= " + args.par_module_score + "\n")
+    full_path_module_score = current_dir + "/" + args.par_module_score
+    step7_file.write("par_module_score= " + full_path_module_score + "\n")
 
 if args.par_select_features_list:
     step7_file.write("par_select_features_list= c(" + args.par_select_features_list + ")\n")
 
 if args.par_select_features_csv:
-    step7_file.write("par_select_features_csv= " + args.par_select_features_csv + "\n")
+    full_path_select_features_csv = current_dir + "/" + args.par_select_features_csv
+    step7_file.write("par_select_features_csv= " + full_path_select_features_csv + "\n")
 
 if args.par_reference:
-    step7_file.write("par_reference= " + args.par_reference + "\n")
+    full_path_reference = current_dir + "/" + args.par_reference
+    step7_file.write("par_reference= " + full_path_reference + "\n")
 
 if args.par_reference_name:
     step7_file.write("par_reference_name= " + args.par_reference_name + "\n")
@@ -1076,11 +1237,14 @@ if args.par_name_metadata:
 if args.par_annotate_labels:
     step7_file.write("par_annotate_labels= c(" + args.par_annotate_labels + ")\n")
 
+step7_file.close()
+
 #################################
 # Generate the step_8.txt file #
 #################################
 
-step8_file = open("step8.txt", "w")
+step8_file_path = dir_fullpath + "/job_info/parameters/step8_par.txt"
+step8_file = open(step8_file_path, "w")
 
 if args.par_save_RNA_step8:
     step8_file.write("step8_par_save_RNA=\"yes\"\n")
@@ -1089,13 +1253,15 @@ if args.par_save_metadata_step8:
     step8_file.write("step8_par_save_metadata=\"yes\"\n")
 
 if args.par_seurat_object_step8:
+    full_path_seurat_object = current_dir + "/" + args.par_seurat_object_step8
     step8_file.write("step8_par_seurat_object= " + args.par_seurat_object_step8 + "\n")
 
 if args.par_merge_meta:
     step8_file.write("par_merge_meta= " + args.par_merge_meta + "\n")
 
 if args.par_metadata:
-    step8_file.write("par_metadata= " + args.par_metadata + "\n")
+    full_path_metadata = current_dir + "/" + args.par_metadata
+    step8_file.write("par_metadata= " + full_path_metadata + "\n")
 
 if args.par_run_cell_based_all_cells:
     step8_file.write("par_run_cell_based_all_cells=\"yes\"\n")
@@ -1112,28 +1278,14 @@ if args.par_run_sample_based_celltype_groups:
 if args.par_statistical_method:
     step8_file.write("par_statistical_method= " + args.par_statistical_method + "\n")
 
+step8_file.close()
+
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
 # Generate the command line         #
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
 
-# check if no arguments are provided
-if len(sys.argv) == 1:
-    # Execute launch_scrnabox.sh script with -h
-    command = [ "launch_scrnabox.sh", "-h" ]
-    result = subprocess.run(command)
-    sys.exit(0)
-
-if args.dir == None or args.steps == None:
-    print("Please provide the directory and the steps to execute")
-    sys.exit(1)
-
 # Execute launch_scrnabox.sh script
-command = [ "launch_scrnabox.sh", "-d", args.dir, "--steps", args.steps ]
-
-# Add method to command if provided
-if args.method:
-    command.append("--method")
-    command.append(args.method)
+command = [ "launch_scrnabox.sh", "-d", dir_fullpath, "--steps", args.steps ]
 
 # Add msd if provided
 if args.msd:
@@ -1171,8 +1323,15 @@ if args.seulist:
 if args.rcheck:
     command.append("--rcheck")
 
+print ("Executing command:\n" + " ".join(command) + "\n")
 result = subprocess.run(command)
 
 if result.returncode != 0:
     print("Error while executing launch_scrnabox.sh script")
     sys.exit(1)
+else:
+    print("Execution completed successfully.")
+    # copy the working directory to the output directory
+    print("Copying the working directory to the output directory.")
+    subprocess.run(["cp", "-r", dir_fullpath, args.output_dir])
+    sys.exit(0)

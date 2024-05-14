@@ -1,0 +1,117 @@
+FROM scrnabox:1.52.50_base
+
+# File Author / Maintainer MAINTAINER
+LABEL authors="Natacha Beck <nbeck.nan@gmail.com>"
+
+# Re-install launch_scrnabox.sh (for local option)
+#COPY scrnabox.slurm/launch_scrnabox.sh /scrnabox_install/scrnabox.slurm/launch_scrnabox.sh
+
+# Add the scRNAbox wrapper
+COPY scRNAbox_cmd_wrapper.py /usr/local/bin/scRNAbox_cmd_wrapper.py
+COPY scrnabox.slurm /usr/local/bin/scrnabox.slurm
+
+RUN  cp -r /scrnabox_install/cellranger-7.2.0 /usr/local/bin/cellranger-7.2.0
+
+####################
+# chmod            #
+####################
+
+# Pas besoin de mettre +x and pas besoin d ajouter
+RUN chmod +x /usr/local/bin/scrnabox.slurm/hto/scripts/step2/pipeline_step2.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/hto/scripts/step2:$PATH
+
+RUN chmod +x /usr/local/bin/scrnabox.slurm/hto/scripts/step1/create_cellranger_hto.sh
+RUN chmod +x /usr/local/bin/scrnabox.slurm/hto/scripts/step1/create_cellranger_hto_local.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/hto/scripts/step1:$PATH
+
+RUN chmod +x /usr/local/bin/scrnabox.slurm/hto/scripts/step8/pipeline_step8_addmeta.sh
+RUN chmod +x /usr/local/bin/scrnabox.slurm/hto/scripts/step8/pipeline_step8_rundge.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/hto/scripts/step8:$PATH
+
+RUN chmod +x /usr/local/bin/scrnabox.slurm/hto/scripts/step7/pipeline_step7_annotate.sh
+RUN chmod +x /usr/local/bin/scrnabox.slurm/hto/scripts/step7/pipeline_step7_knownmarkers.sh
+RUN chmod +x /usr/local/bin/scrnabox.slurm/hto/scripts/step7/pipeline_step7_markergsea.sh
+RUN chmod +x /usr/local/bin/scrnabox.slurm/hto/scripts/step7/pipeline_step7_referenceannotation.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/hto/scripts/step7:$PATH
+
+RUN chmod +x /usr/local/bin/scrnabox.slurm/hto/scripts/step6/pipeline_step6.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/hto/scripts/step6:$PATH
+
+RUN chmod +x /usr/local/bin/scrnabox.slurm/hto/scripts/step5/pipeline_step5.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/hto/scripts/step5:$PATH
+
+RUN chmod +x /usr/local/bin/scrnabox.slurm/hto/scripts/step4/pipeline_step4.sh
+RUN chmod +x /usr/local/bin/scrnabox.slurm/hto/scripts/step4/pipeline_step4_msd.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/hto/scripts/step4:$PATH
+
+RUN chmod +x /usr/local/bin/scrnabox.slurm/hto/scripts/step3/pipeline_step3.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/hto/scripts/step3:$PATH
+
+RUN chmod +x /usr/local/bin/scrnabox.slurm/integrate/pipeline_integrate.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/integrate:$PATH
+
+RUN chmod +x /usr/local/bin/scrnabox.slurm/launch/launch_scrnabox_hto_local.sh
+RUN chmod +x /usr/local/bin/scrnabox.slurm/launch/launch_scrnabox_hto_slurm.sh
+RUN chmod +x /usr/local/bin/scrnabox.slurm/launch/launch_scrnabox_integ_local.sh
+RUN chmod +x /usr/local/bin/scrnabox.slurm/launch/launch_scrnabox_integ_slurm.sh
+RUN chmod +x /usr/local/bin/scrnabox.slurm/launch/launch_scrnabox_scrna_local.sh
+RUN chmod +x /usr/local/bin/scrnabox.slurm/launch/launch_scrnabox_scrna_slurm.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/launch:$PATH
+
+RUN chmod +x /usr/local/bin/scrnabox.slurm/soft/R/install_packages.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/soft/R:$PATH
+RUN chmod +x /usr/local/bin/scrnabox.slurm/soft/Rcheck/pipeline_rcheck.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/soft/Rcheck:$PATH
+
+RUN chmod +x /usr/local/bin/scrnabox.slurm/scrna/scripts/step1/create_cellranger_scrna_local.sh
+RUN chmod +x /usr/local/bin/scrnabox.slurm/scrna/scripts/step1/create_cellranger_scrna.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/scrna/scripts/step1:$PATH
+
+RUN chmod +x /usr/local/bin/scrnabox.slurm/scrna/scripts/step4/pipeline_step4.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/scrna/scripts/step4:$PATH
+
+RUN chmod +x /usr/local/bin/scrnabox.slurm/scrna/scripts/step6/pipeline_step6.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/scrna/scripts/step6:$PATH
+
+RUN chmod +x /usr/local/bin/scrnabox.slurm/scrna/scripts/step5/pipeline_step5.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/scrna/scripts/step5:$PATH
+
+RUN chmod +x /usr/local/bin/scrnabox.slurm/scrna/scripts/step8/pipeline_step8_addmeta.sh
+RUN chmod +x /usr/local/bin/scrnabox.slurm/scrna/scripts/step8/pipeline_step8_rundge.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/scrna/scripts/step8:$PATH
+
+RUN chmod +x /usr/local/bin/scrnabox.slurm/scrna/scripts/step7/pipeline_step7_annotate.sh
+RUN chmod +x /usr/local/bin/scrnabox.slurm/scrna/scripts/step7/pipeline_step7_knownmarkers.sh
+RUN chmod +x /usr/local/bin/scrnabox.slurm/scrna/scripts/step7/pipeline_step7_markergsea.sh
+RUN chmod +x /usr/local/bin/scrnabox.slurm/scrna/scripts/step7/pipeline_step7_referenceannotation.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/scrna/scripts/step7:$PATH
+
+RUN chmod +x /usr/local/bin/scrnabox.slurm/scrna/scripts/step3/pipeline_step3.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/scrna/scripts/step3:$PATH
+
+RUN chmod +x /usr/local/bin/scrnabox.slurm/scrna/scripts/step2/pipeline_step2.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/scrna/scripts/step2:$PATH
+
+RUN chmod +x /usr/local/bin/scrnabox.slurm/tools/utils.sh
+ENV PATH /usr/local/bin/scrnabox.slurm/tools:$PATH
+
+RUN chmod +x /usr/local/bin/scrnabox.slurm/launch_scrnabox.sh
+ENV PATH /usr/local/bin/scrnabox.slurm:$PATH
+
+RUN chmod +x /usr/local/bin/scRNAbox_cmd_wrapper.py
+
+RUN chmod a+r  /scrnabox_install
+RUN chmod a+rx /usr/local/bin/cellranger-7.2.0
+RUN chmod a+x  /usr/local/bin/cellranger-7.2.0/cellranger
+
+####################
+# Set ENV variable #
+####################
+
+# R path
+RUN cp -r /scrnabox_install/R /usr/local/lib/R
+ENV R_PATH /usr/local/lib/R/library
+
+ENV PATH /usr/local/bin/cellranger-7.2.0:$PATH
+ENV SCRNABOX_PWD=/job_info
+

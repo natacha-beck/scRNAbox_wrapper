@@ -1,0 +1,127 @@
+FROM rockylinux:9.3
+
+# File Author / Maintainer MAINTAINER
+LABEL authors="Natacha Beck <nbeck.nan@gmail.com>"
+
+# Update and install utilities
+RUN dnf update  -y
+
+RUN dnf install -y epel-release
+RUN dnf config-manager --set-enabled crb
+RUN dnf install -y --nobest ImageMagick-c++-devel
+RUN dnf install -y --nobest ImageMagick ImageMagick-devel
+RUN dnf install -y https://download1.rpmfusion.org/free/el/rpmfusion-free-release-9.noarch.rpm
+RUN dnf install -y https://download1.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-9.noarch.rpm
+RUN dnf install -y ffmpeg-devel
+
+RUN dnf install -y vim               \
+                   wget              \
+                   unzip             \
+                   git               \
+                   gcc               \
+                   gcc-c++           \
+                   make              \
+                   cmake             \
+                   libcurl-devel     \
+                   libxml2-devel     \
+                   openssl-devel     \
+                   harfbuzz-devel    \
+                   fribidi-devel     \
+                   libtiff-devel     \
+                   libjpeg-devel     \
+                   hdf5-devel        \
+                   cairo-devel       \
+                   fftw-devel        \
+                   gsl-devel         \
+                   glpk-devel        \
+                   libwebp-devel     \
+	               poppler-devel     \
+	               poppler-cpp-devel \
+                   tesseract-devel   \
+                   leptonica-devel   \
+                   librsvg2-devel    \
+                   gmp-devel         \
+                   cargo             \
+                   libsodium-devel   \
+                   R
+
+RUN dnf list R
+RUN dnf groupinstall -y "Development Tools"
+
+RUN     useradd -U -m  -d /scrnabox_install -s /bin/bash scrnabox
+
+# Copy bcl2fastq2
+COPY    bcl2fastq2-v2-20-0-linux-x86-64.zip /scrnabox_install/
+RUN     chown scrnabox /scrnabox_install/bcl2fastq2-v2-20-0-linux-x86-64.zip
+
+# Copy cellranger
+COPY    cellranger-7.2.0.tar.gz             /scrnabox_install/
+RUN     chown scrnabox /scrnabox_install/cellranger-7.2.0.tar.gz
+
+# Copy scrnabox
+COPY    scrnabox.slurm /scrnabox_install/scrnabox.slurm
+RUN     chown scrnabox /scrnabox_install/scrnabox.slurm
+
+#USER    scrnabox
+WORKDIR /scrnabox_install
+
+#####################
+# Install scRNAbox  #
+#####################
+
+#RUN wget  -O scrnabox.slurm.zip https://github.com/neurobioinfo/scrnabox/releases/download/v0.1.52/scrnabox.slurm.zip && unzip scrnabox.slurm.zip && rm scrnabox.slurm.zip
+
+######################
+#  Install bcl2fastq #
+######################
+
+RUN unzip bcl2fastq2-v2-20-0-linux-x86-64.zip
+
+#USER root
+RUN  yum install -y /scrnabox_install/bcl2fastq2-v2.20.0.422-Linux-x86_64.rpm
+RUN  rm bcl2fastq2*
+
+#USER scrnabox
+WORKDIR /scrnabox_install
+
+######################
+# Install cellranger #
+######################
+
+RUN tar  -xzvf cellranger-7.2.0.tar.gz && rm   -f cellranger-7.2.0.tar.gz
+
+######################
+# Use root to:       #
+#   - fix permission #
+######################
+
+#USER root
+# Change permission
+RUN  chmod +x /scrnabox_install/scrnabox.slurm/launch_scrnabox.sh
+#USER scrnabox
+
+ENV R_PATH=/scrnabox_install/R/library
+RUN mkdir -p $R_PATH
+RUN Rscript /scrnabox_install/scrnabox.slurm/soft/R/install_packages_scrnabox.R.new $R_PATH 2>&1 /scrnabox_install/install.log
+
+# Add the scRNAbox wrapper
+COPY scrnabox.slurm/launch_scrnabox.sh /scrnabox_install/scrnabox.slurm/launch_scrnabox.sh
+RUN  chmod +x /scrnabox_install/scrnabox.slurm/launch_scrnabox.sh
+COPY scRNAbox_wrapper.py /usr/local/bin/scRNAbox_wrapper.py
+
+###############################
+# Create job dir and data dir #
+###############################
+
+RUN  mkdir /workdir
+COPY job_info /workdir/
+RUN  mkdir /data
+
+####################
+# Set ENV variable #
+####################
+
+ENV PATH /scrnabox_install/scrnabox.slurm:/scrnabox_install/cellranger-7.2.0:$PATH
+ENV SCRNABOX_PWD=/job_info
+
+
