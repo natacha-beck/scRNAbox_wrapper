@@ -49,6 +49,7 @@ configuration_options.add_argument('--R_path', type=is_dir, help='Path to R exec
 # job_mode
 configuration_options.add_argument('--job_mode', type=str, help='Job mode (local, slurm)')
 
+<<<<<<< HEAD
 # output_dir
 configuration_options.add_argument('--output_dir', type=str, help='Output directory')
 
@@ -134,7 +135,7 @@ group1_options.add_argument('--par_ref_dir', type=is_dir, help='Reference genome
 # CellRanger counts pipeline parameters.
 ## Path to reference genome
 #par_ref_dir_grch='/path/to/CellRanger/reference/genome'
-group1_options.add_argument('--par_ref_dir_grch', type=str, help='Reference genome')
+group1_options.add_argument('--par_ref_dir_grch', type=is_dir, help='Reference genome')
 
 ## Minimum number of bases to retain for R1 sequence of gene expression assay. If you want to use this parameter uncomment the line below and define your par_r1_length.
 #par_r1_length=20
