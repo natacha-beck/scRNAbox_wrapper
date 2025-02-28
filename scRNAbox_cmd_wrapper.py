@@ -13,6 +13,7 @@ import subprocess
 import sys
 import os
 import time
+import shutil
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
 # Utility methods                  #
@@ -49,9 +50,8 @@ configuration_options.add_argument('--R_path', type=is_dir, help='Path to R exec
 # job_mode
 configuration_options.add_argument('--job_mode', type=str, help='Job mode (local, slurm)')
 
-<<<<<<< HEAD
 # output_dir
-configuration_options.add_argument('--output_dir', type=str, help='Output directory')
+configuration_options.add_argument('--output_dir', type=str, default='scRNAbox_dir', help='Output directory')
 
 # Reference data directory
 configuration_options.add_argument('--ref_data_dir', type=is_dir, help='Reference data directory')
@@ -63,7 +63,7 @@ configuration_options.add_argument('--ref_data_dir', type=is_dir, help='Referenc
 general_options = parser.add_argument_group('General parameters')
 
 # -d  (--dir)  = Working directory (where all the outputs will be printed) (give full path)
-general_options.add_argument('-d', '--dir', type=str, help='Working directory (where all the outputs will be printed)')
+general_options.add_argument('-d', '--dir', type=str, default='workdir', help='Working directory (where all the outputs will be printed)')
 
 # --steps  =  Specify what steps, e.g., 2 to run step 2. 2-6, run steps 2 through 6
 general_options.add_argument('--steps', type=str, help='Specify what steps, e.g., 2 to run step 2. 2-6, run steps 2 through 6')
@@ -91,9 +91,6 @@ general_options.add_argument('--addmeta', action='store_true', help='Add metadat
 
 # --rundge  = Perform differential gene expression contrasts (Step 8).
 general_options.add_argument('--rundge', action='store_true', help='Perform differential gene expression contrasts (Step 8)')
-
-# --seulist  = You can directly call the list of Seurat objects to the pipeline.
-general_options.add_argument('--seulist', action='store_true', help='You can directly call the list of Seurat objects to the pipeline')
 
 # --rcheck  = You can identify which libraries are not installed.
 general_options.add_argument('--rcheck', action='store_true', help='You can identify which libraries are not installed')
@@ -135,7 +132,7 @@ group1_options.add_argument('--par_ref_dir', type=is_dir, help='Reference genome
 # CellRanger counts pipeline parameters.
 ## Path to reference genome
 #par_ref_dir_grch='/path/to/CellRanger/reference/genome'
-group1_options.add_argument('--par_ref_dir_grch', type=is_dir, help='Reference genome')
+group1_options.add_argument('--par_ref_dir_grch', type=str, help='Reference genome')
 
 ## Minimum number of bases to retain for R1 sequence of gene expression assay. If you want to use this parameter uncomment the line below and define your par_r1_length.
 #par_r1_length=20
@@ -617,7 +614,7 @@ group7_options.add_argument('--par_run_visualize_markers', action='store_true', 
 
 ## Define the path to a csv file containing the genes sets for module score
 # par_module_score= "/path/to/gene_sets.csv"
-group7_options.add_argument('--par_module_score', type=is_file, help='csv file containing the genes sets for module score')
+group7_options.add_argument('--par_module_score', type=is_file, help='csGv file containing the genes sets for module score')
 
 ## List of markers that you want to visualize (dot plot, violin plot, feature plot)
 ## Be sure to use the official gene names
@@ -745,9 +742,14 @@ if len(sys.argv) == 1:
     parser.print_help()
     sys.exit(0)
 
-if args.dir == None or args.steps == None or args.output_dir == None:
+if  args.steps == None or args.output_dir == None:
     print("Please provide the work directory, the steps to execute, and the output directory.")
     sys.exit(1)
+
+work_dir = args.dir
+if args.dir == None:
+    work_dir = "scRNAbox_workdir"
+    os.makedirs(work_dir)
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
 # Generate the step*.txt files based on the user input and the default parameters #
@@ -756,9 +758,27 @@ if args.dir == None or args.steps == None or args.output_dir == None:
 # Create working directory
 # Check if the directory already exists
 current_dir = os.getcwd()
-dir_fullpath = current_dir + "/" + args.dir
+dir_fullpath = current_dir + "/" + work_dir
 if os.path.exists(dir_fullpath):
     print("Directory already exists, use this directory to continue the analysis.")
+    # Create job_info directory if not exist
+    if not os.path.exists(dir_fullpath + "/job_info"):
+        os.makedirs(dir_fullpath + "/job_info")
+    # Create configs directory if not exist
+    if not os.path.exists(dir_fullpath + "/job_info/configs"):
+        os.makedirs(dir_fullpath + "/job_info/configs")
+    # Create parameters directory if not exist
+    if not os.path.exists(dir_fullpath + "/job_info/parameters"):
+        os.makedirs(dir_fullpath + "/job_info/parameters")
+    # Create .tmp directory if not exist
+    if not os.path.exists(dir_fullpath + "/job_info/.tmp"):
+        os.makedirs(dir_fullpath + "/job_info/.tmp")
+    # Create logs directory if not exist
+    if not os.path.exists(dir_fullpath + "/job_info/logs"):
+        os.makedirs(dir_fullpath + "/job_info/logs")
+    # touch summary_report.txt
+    if not os.path.exists(dir_fullpath + "/job_info/summary_report.txt"):
+        open(dir_fullpath + "/job_info/summary_report.txt", "w").close()
 else:
     os.makedirs(dir_fullpath)
     # Create job_info directory
@@ -1285,54 +1305,91 @@ step8_file.close()
 # Generate the command line         #
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
 
+def add_global_args(command, step):
+    # Add msd if provided
+    if args.msd and step == 4:
+        command.append("--msd T")
+
+    # Add markergsea if provided
+    if args.markergsea and step == 7:
+        command.append("--markergsea T")
+
+    # Add knownmarkers if provided
+    if args.knownmarkers:
+        command.append("--knownmarkers T")
+
+    # Add referenceannotation if provided
+    if args.referenceannotation and step == 7:
+        command.append("--referenceannotation T")
+
+    # Add annotate if provided
+    if args.annotate and step == 7:
+        command.append("--annotate T")
+
+    # Add addmeta if provided
+    if args.addmeta and step == 8:
+        command.append("--addmeta T")
+
+    # Add rundge if provided
+    if args.rundge and step == 8:
+        command.append("--rundge T")
+
+    # Add rcheck if provided
+    if args.rcheck:
+        command.append("--rcheck T")
+
+
 # Execute launch_scrnabox.sh script
-command = [ "launch_scrnabox.sh", "-d", dir_fullpath, "--steps", args.steps ]
-
-# Add msd if provided
-if args.msd:
-    command.append("--msd")
-
-# Add markergsea if provided
-if args.markergsea:
-    command.append("--markergsea")
-
-# Add knownmarkers if provided
-if args.knownmarkers:
-    command.append("--knownmarkers")
-
-# Add referenceannotation if provided
-if args.referenceannotation:
-    command.append("--referenceannotation")
-
-# Add annotate if provided
-if args.annotate:
-    command.append("--annotate")
-
-# Add addmeta if provided
-if args.addmeta:
-    command.append("--addmeta")
-
-# Add rundge if provided
-if args.rundge:
-    command.append("--rundge")
-
-# Add seulist if provided
-if args.seulist:
-    command.append("--seulist")
-
-# Add rcheck if provided
-if args.rcheck:
-    command.append("--rcheck")
-
-print ("Executing command:\n" + " ".join(command) + "\n")
-result = subprocess.run(command)
-
-if result.returncode != 0:
-    print("Error while executing launch_scrnabox.sh script")
-    sys.exit(1)
+# If only one step is provided and is an integer, then execute that step
+# command = []
+# Create a list of commands with key == step number
+step_command = {}
+if args.steps.isdigit():
+    command = [ "launch_scrnabox.sh", "-d", dir_fullpath, "--steps", args.steps ]
+    add_global_args(command,args.steps)
+    step_command[args.steps] = " ".join(command)
 else:
-    print("Execution completed successfully.")
-    # copy the working directory to the output directory
-    print("Copying the working directory to the output directory.")
-    subprocess.run(["cp", "-r", dir_fullpath, args.output_dir])
-    sys.exit(0)
+    # split the steps by '-' and extend the range then convert to a list and execute the steps
+    try:
+        steps = args.steps.split('-')
+        steps_range = range(int(steps[0]), int(steps[1]) + 1)
+        for step in steps_range:
+            if step == steps_range[-1]:
+                command = [ "launch_scrnabox.sh", "-d", dir_fullpath, "--steps", str(step) ]
+                add_global_args(command,step)
+                step_command[step] = " ".join(command)
+            else:
+                command = [ "launch_scrnabox.sh", "-d", dir_fullpath, "--steps", str(step) ]
+                add_global_args(command,step)
+                step_command[step] = " ".join(command)
+    except ValueError:
+        raise ValueError("Please provide a valid range of steps to execute.")
+
+for step, command in step_command.items():
+    print ("Running command:\n")
+    print (command)
+    result = subprocess.run(command, shell=True)
+    if result.returncode != 0:
+        print("Error while executing launch_scrnabox.sh script")
+        sys.exit(1)
+    else:
+        # Look if the folder output have an entry for the step
+        # and that this entry is not empty
+        step_subdir = work_dir + "/step" + str(step)
+        if (os.path.isdir(step_subdir) and (len(os.listdir(step_subdir)) != 0)):
+            print(f"Step {step} completed successfully")
+        else:
+            print(f"Step subdir is {step_subdir}")
+            print(f"Step {step} failed")
+            exit(1)
+
+
+
+# Copy content of work_dir in args.output_dir
+try:
+    shutil.copytree(work_dir, args.output_dir)
+except Exception as err:
+    print(f"Unexpected {err=}, {type(err)=}")
+    raise
+
+sys.exit(0)
